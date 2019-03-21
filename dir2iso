@@ -1,0 +1,6 @@
+#! /bin/bash
+echo -n "请你输入新建iso的文件名 (文件名): "
+read -e isoName
+echo -n "请你输入将要被创建为 iso 的目录 (目录1 目录2 ...):"
+read -e dirName
+mkisofs -o $isoName.iso $dirName

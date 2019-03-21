@@ -1,0 +1,29 @@
+#! /bin/bash
+##从/dev/cdrom创建iso
+zenity --info --text="请选择您要保存文件的目录（默认为主目录）"
+dirName=`zenity --file-selection --directory 2>/dev/null`
+if [ $dirName = "" ];then
+cd ~/
+else
+cd $dirName
+fi
+filesize=0
+cdsize=`df /dev/sr0`
+isoname=`echo $cdsize|awk -F"[/]" '{print $5}'`
+isoname=`echo $isoname.iso|awk '{ gsub(/ /, "_"); print }'` #取得默认文件名
+#isoname=`echo $isoname.iso`
+cdsize=`echo $cdsize|awk -F"[ ]" '{print $9}'` #获取光盘总大小单位kb
+#echo $cdsize
+isoName=`zenity --entry --text="请你输入新建iso的文件名 (文件名.iso):" --entry-text=$isoname`
+if [ ! $isoName = "" ];then
+dd if=/dev/cdrom of=$isoName&
+pid_id=$!
+#echo $pid_id
+while [ -e /proc/$! ]; do 
+	filesize=`stat -c %s $isoName`  
+	let   percentage=$filesize/$cdsize*100/1024 
+    	printf "#请等待, 正在读取CD .... %d%%\n" $percentage 
+        echo $percentage
+        sleep 1;
+done | zenity --progress --text="请等待, 正在读取CD ..." ;kill $pid_id
+fi
