@@ -3,6 +3,8 @@ import subprocess
 import re
 import os
 import urllib.request
+# 从很多DNS服务器中，找到解析较快的服务器
+# 然后生成smartDNS支持的配置文件格式
 # 依赖
 # apt-get install knot-dnsutils
 
@@ -122,7 +124,7 @@ else:
             html = str(urllib.request.urlopen(url).read(), encoding="utf-8")
             resultsub = re.findall(re.compile(ipv4), html)
         except:
-            resultsub=[]
+            resultsub = []
         print('读取到%s条记录' % len(resultsub))
         result.extend(resultsub)
     result = list(set(result))

@@ -1,4 +1,6 @@
 #!/bin/bash
+#超时改为1,
+#增加UbuntuISO
 isture=$(grep 'GRUB_TIMEOUT=1'  /etc/default/grub);
 if [ ! -n "$isture" ];then
         sed -i 's/GRUB_TIMEOUT=10/GRUB_TIMEOUT=1/' /etc/default/grub

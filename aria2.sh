@@ -1,4 +1,5 @@
 #!/bin/bash
+#aria2启动脚本
 stop() {
 	# must interrupt it to save session
 	killall -2 aria2c
@@ -80,24 +81,24 @@ EOF
 }
 restart(){
 	stop
-	sleep 3	
+	sleep 3
 	start
 }
 
-case "$1" in  
-start)  
-        start  
-        ;;  
-stop)  
-        stop  
-        ;;  
-reload|force-reload|restart)  
-        restart  
+case "$1" in
+start)
+        start
         ;;
-status|pid)  
-        pgrep aria2c  
+stop)
+        stop
         ;;
-*)  
-        echo $"Usage: $0 {start|stop|restart|pid}"  
-        exit 1  
-esac 
+reload|force-reload|restart)
+        restart
+        ;;
+status|pid)
+        pgrep aria2c
+        ;;
+*)
+        echo $"Usage: $0 {start|stop|restart|pid}"
+        exit 1
+esac
