@@ -1,3 +1,4 @@
+# 每行一个域名，不能有多余字符
 taobao.com
 baidu.com
 csdn.net
@@ -6,4 +7,4 @@ qq.com
 jd.com
 youku.com
 iqiyi.com
-
+cn
