@@ -1,23 +1,42 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # coding=utf-8
 import re
 import os
+import urllib.request
 
 ipset_forward = 'govpn'
 rulesfile = './dnsmasq.conf'
+domain_url = 'https://raw.githubusercontent.com/felixonmars/dnsmasq-china-list/master/accelerated-domains.china.conf'
+domainList = []
+# 读取本地域名列表
 domain_pattern = '^([\w\-\_\.]*[\w\.\-\_]+)'
 domainlist = open('domain.list', 'r')
+for line in domainlist.readlines():
+    domain = re.findall(domain_pattern, line)
+    if domain:
+        print('add ' + domain[0])
+        domainList.append(domain[0])
+    else:
+        print('no valid domain in this line: ' + line)
+domainlist.close()
+# 读取远程域名列表
+domain_pattern = 'server=/([\w\-\_\.]*[\w\.\-\_]+)/114.114.114.114'
+html = str(urllib.request.urlopen(domain_url).read(), encoding="utf-8")
+for line in html.splitlines():
+    domain = re.findall(domain_pattern, line)
+    if domain:
+        print('add ' + domain[0])
+        domainList.append(domain[0])
+    else:
+        print('no valid domain in this line: ' + line)
+# 去重并写入
+domainList = list(set(domainList))
+print('总共读取到%s条不重复记录,开始写入文件%s' % (len(domainList), rulesfile))
 try:
     os.remove(rulesfile)
 except:
     pass
 fs = open(rulesfile, 'w')
-for line in domainlist.readlines():
-    domain = re.findall(domain_pattern, line)
-    if domain:
-        print('saving ' + domain[0])
-        fs.write('ipset=/.%s/%s\n' % (domain[0], ipset_forward))
-    else:
-        print 'no valid domain in this line: ' + line
-domainlist.close()
+for domain in domainList:
+    fs.write('ipset=/.%s/%s\n' % (domain, ipset_forward))
 fs.close()
