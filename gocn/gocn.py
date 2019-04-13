@@ -6,6 +6,7 @@ import urllib.request
 
 ipset_forward = 'govpn'
 rulesfile = './dnsmasq.conf'
+domainListfile = './domain.all.list'
 domain_url = 'https://raw.githubusercontent.com/felixonmars/dnsmasq-china-list/master/accelerated-domains.china.conf'
 domainList = []
 # 读取本地域名列表
@@ -34,9 +35,17 @@ domainList = list(set(domainList))
 print('总共读取到%s条不重复记录,开始写入文件%s' % (len(domainList), rulesfile))
 try:
     os.remove(rulesfile)
+    os.remove(domainListfile)
 except:
     pass
 fs = open(rulesfile, 'w')
+fsd = open(domainListfile, 'w')
 for domain in domainList:
     fs.write('ipset=/.%s/%s\n' % (domain, ipset_forward))
+    num = domain.count('.')
+    if num <= 1:
+        fsd.write('.%s\n' % (domain,))
+    elif num > 1:
+        fsd.write('%s\n' % (domain,))
 fs.close()
+fsd.close()
