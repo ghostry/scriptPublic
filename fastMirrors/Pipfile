@@ -9,4 +9,4 @@ verify_ssl = true
 beautifulsoup4 = "==4.7.*"
 
 [requires]
-python_version = "3.6"
+python_version = "3"
