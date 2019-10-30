@@ -1,0 +1,106 @@
+#!/bin/bash
+# sudo apt install fio bc
+# sudo apt install smartmontools
+
+LOOPS=1 #How many times to run each test
+QSIZE=1 #Size of Q32Seq tests
+WRITEZERO=0 #Set whether to write zeroes or randoms to testfile (random is the default for both fio and crystaldiskmark); dd benchmarks typically only write zeroes which is why there can be a speed difference.
+
+SIZE=$(($QSIZE * 32)) #Size of each test
+SIZE+=m
+QSIZE+=m
+
+if [ -z $1 ]; then
+    TARGET=$HOME
+    echo "Defaulting to $TARGET for testing"
+else
+    TARGET="$1"
+    echo "Testing in $TARGET"
+fi
+
+DRIVE=$(df $TARGET | grep /dev | cut -d/ -f3 | cut -d" " -f1 | rev | cut -c 2- | rev)
+DRIVEMODEL=$(cat /sys/block/$DRIVE/device/model)
+DRIVESIZE=$(($(cat /sys/block/$DRIVE/size)*512/1024/1024/1024))GB
+
+echo -e "Configuration: Size:\033[0;32m$SIZE\033[0m Loops:\033[0;32m$LOOPS\033[0m Write Only Zeroes:\033[0;32m$WRITEZERO\033[0m
+Running Benchmark on: \033[0;32m/dev/$DRIVE\033[0m, \033[0;32m$DRIVEMODEL ($DRIVESIZE)\033[0m, please wait...
+"
+sudo smartctl -a /dev/$DRIVE|grep 'Device Model'|awk -F ':' '{print $2}'
+# Bufread
+fio --loops=$LOOPS --size=$SIZE --filename=$TARGET/.fiomark.tmp --stonewall --ioengine=libaio --direct=1 --zero_buffers=$WRITEZERO --output-format=json \
+  --name=Bufread --loops=1 --bs=$SIZE --iodepth=1 --numjobs=1 --rw=readwrite > $TARGET/.fiomark.txt
+echo -e "Results from /dev/$DRIVE, $DRIVEMODEL ($DRIVESIZE):"
+BUQR="$(echo "scale=2;$(cat $TARGET/.fiomark.txt | grep -A15 '"name" : "Bufread"' | grep '"bw"' | cut -d: -f2 | sed s:,::g)/1024"|bc)MB/s IOPS=$(cat $TARGET/.fiomark.txt | grep -A15 '"name" : "Bufread"' | grep -m1 iops | cut -d: -f2 | cut -d. -f1 | sed 's: ::g')"
+echo -e "
+\033[0;33m
+Bufread : $BUQR"
+# Seqread
+fio --loops=$LOOPS --size=$SIZE --filename=$TARGET/.fiomark.tmp --stonewall --ioengine=libaio --direct=1 --zero_buffers=$WRITEZERO --output-format=json \
+  --name=Seqread --bs=$SIZE --iodepth=1 --numjobs=1 --rw=read > $TARGET/.fiomark.txt
+SEQR="$(echo "scale=2;$(cat $TARGET/.fiomark.txt | grep -A15 '"name" : "Seqread"' | grep '"bw"' | cut -d: -f2 | sed s:,::g)/1024"|bc)MB/s IOPS=$(cat $TARGET/.fiomark.txt | grep -A15 '"name" : "Seqread"' | grep -m1 iops | cut -d: -f2 | cut -d. -f1 | sed 's: ::g')"
+echo -e "\033[0;33m
+Sequential Read: $SEQR"
+# Seqwrite
+fio --loops=$LOOPS --size=$SIZE --filename=$TARGET/.fiomark.tmp --stonewall --ioengine=libaio --direct=1 --zero_buffers=$WRITEZERO --output-format=json \
+  --name=Seqwrite --bs=$SIZE --iodepth=1 --numjobs=1 --rw=write > $TARGET/.fiomark.txt
+SEQW="$(echo "scale=2;$(cat $TARGET/.fiomark.txt | grep -A80 '"name" : "Seqwrite"' | grep '"bw"' | sed '2!d' | cut -d: -f2 | sed s:,::g)/1024"|bc)MB/s IOPS=$(cat $TARGET/.fiomark.txt | grep -A80 '"name" : "Seqwrite"' | grep iops | sed '7!d' | cut -d: -f2 | cut -d. -f1 | sed 's: ::g')"
+echo -e "Sequential Write: $SEQW"
+# 512kread
+fio --loops=$LOOPS --size=$SIZE --filename=$TARGET/.fiomark.tmp --stonewall --ioengine=libaio --direct=1 --zero_buffers=$WRITEZERO --output-format=json \
+  --name=512kread --bs=512k --iodepth=1 --numjobs=1 --rw=read > $TARGET/.fiomark.txt
+F12KR="$(echo "scale=2;$(cat $TARGET/.fiomark.txt | grep -A15 '"name" : "512kread"' | grep '"bw"' | cut -d: -f2 | sed s:,::g)/1024"|bc)MB/s IOPS=$(cat $TARGET/.fiomark.txt | grep -A15 '"name" : "512kread"' | grep -m1 iops | cut -d: -f2 | cut -d. -f1 | sed 's: ::g')"
+echo -e "\033[0;32m
+512KB Read: $F12KR"
+# 512kwrite
+fio --loops=$LOOPS --size=$SIZE --filename=$TARGET/.fiomark.tmp --stonewall --ioengine=libaio --direct=1 --zero_buffers=$WRITEZERO --output-format=json \
+  --name=512kwrite --bs=512k --iodepth=1 --numjobs=1 --rw=write > $TARGET/.fiomark.txt
+F12KW="$(echo "scale=2;$(cat $TARGET/.fiomark.txt | grep -A80 '"name" : "512kwrite"' | grep '"bw"' | sed '2!d' | cut -d: -f2 | sed s:,::g)/1024"|bc)MB/s IOPS=$(cat $TARGET/.fiomark.txt | grep -A80 '"name" : "512kwrite"' | grep iops | sed '7!d' | cut -d: -f2 | cut -d. -f1 | sed 's: ::g')"
+echo -e "512KB Write: $F12KW"
+# SeqQ32T1read
+fio --loops=$LOOPS --size=$SIZE --filename=$TARGET/.fiomark.tmp --stonewall --ioengine=libaio --direct=1 --zero_buffers=$WRITEZERO --output-format=json \
+  --name=SeqQ32T1read --bs=$QSIZE --iodepth=32 --numjobs=1 --rw=read > $TARGET/.fiomark.txt
+SEQ32R="$(echo "scale=2;$(cat $TARGET/.fiomark.txt | grep -A15 '"name" : "SeqQ32T1read"' | grep '"bw"' | cut -d: -f2 | sed s:,::g)/1024"|bc)MB/s IOPS=$(cat $TARGET/.fiomark.txt | grep -A15 '"name" : "SeqQ32T1read"' | grep -m1 iops | cut -d: -f2 | cut -d. -f1 | sed 's: ::g')"
+echo -e "\033[1;36m
+Sequential Q32T1 Read: $SEQ32R"
+# SeqQ32T1write
+fio --loops=$LOOPS --size=$SIZE --filename=$TARGET/.fiomark.tmp --stonewall --ioengine=libaio --direct=1 --zero_buffers=$WRITEZERO --output-format=json \
+  --name=SeqQ32T1write --bs=$QSIZE --iodepth=32 --numjobs=1 --rw=write > $TARGET/.fiomark.txt
+SEQ32W="$(echo "scale=2;$(cat $TARGET/.fiomark.txt | grep -A80 '"name" : "SeqQ32T1write"' | grep '"bw"' | sed '2!d' | cut -d: -f2 | sed s:,::g)/1024"|bc)MB/s IOPS=$(cat $TARGET/.fiomark.txt | grep -A80 '"name" : "SeqQ32T1write"' | grep iops | sed '7!d' | cut -d: -f2 | cut -d. -f1 | sed 's: ::g')"
+echo -e "Sequential Q32T1 Write: $SEQ32W"
+# 4kread
+fio --loops=$LOOPS --size=$SIZE --filename=$TARGET/.fiomark.tmp --stonewall --ioengine=libaio --direct=1 --zero_buffers=$WRITEZERO --output-format=json \
+  --name=4kread --bs=4k --iodepth=1 --numjobs=1 --rw=randread > $TARGET/.fiomark.txt
+FKR="$(echo "scale=2;$(cat $TARGET/.fiomark.txt | grep -A15 '"name" : "4kread"' | grep '"bw"' | cut -d: -f2 | sed s:,::g)/1024"|bc | awk '{printf "%.2f", $0}')MB/s IOPS=$(cat $TARGET/.fiomark.txt | grep -A15 '"name" : "4kread"' | grep -m1 iops | cut -d: -f2 | cut -d. -f1 | sed 's: ::g')"
+echo -e "\033[0;36m
+4KB Read: $FKR"
+# 4kwrite
+fio --loops=$LOOPS --size=$SIZE --filename=$TARGET/.fiomark.tmp --stonewall --ioengine=libaio --direct=1 --zero_buffers=$WRITEZERO --output-format=json \
+  --name=4kwrite --bs=4k --iodepth=1 --numjobs=1 --rw=randwrite > $TARGET/.fiomark.txt
+FKW="$(echo "scale=2;$(cat $TARGET/.fiomark.txt | grep -A80 '"name" : "4kwrite"' | grep '"bw"' | sed '2!d' | cut -d: -f2 | sed s:,::g)/1024"|bc | awk '{printf "%.2f", $0}')MB/s IOPS=$(cat $TARGET/.fiomark.txt | grep -A80 '"name" : "4kwrite"' | grep iops | sed '7!d' | cut -d: -f2 | cut -d. -f1 | sed 's: ::g')"
+echo -e "4KB Write: $FKW"
+# 4kQ32T1read
+fio --loops=$LOOPS --size=$SIZE --filename=$TARGET/.fiomark.tmp --stonewall --ioengine=libaio --direct=1 --zero_buffers=$WRITEZERO --output-format=json \
+  --name=4kQ32T1read --bs=4k --iodepth=32 --numjobs=1 --rw=randread > $TARGET/.fiomark.txt
+FK32R="$(echo "scale=2;$(cat $TARGET/.fiomark.txt | grep -A15 '"name" : "4kQ32T1read"' | grep '"bw"' | cut -d: -f2 | sed s:,::g)/1024"|bc | awk '{printf "%.2f", $0}')MB/s IOPS=$(cat $TARGET/.fiomark.txt | grep -A15 '"name" : "4kQ32T1read"' | grep -m1 iops | cut -d: -f2 | cut -d. -f1 | sed 's: ::g')"
+echo -e "\033[1;33m
+4KB Q32T1 Read: $FK32R"
+# 4kQ32T1write
+fio --loops=$LOOPS --size=$SIZE --filename=$TARGET/.fiomark.tmp --stonewall --ioengine=libaio --direct=1 --zero_buffers=$WRITEZERO --output-format=json \
+  --name=4kQ32T1write --bs=4k --iodepth=32 --numjobs=1 --rw=randwrite > $TARGET/.fiomark.txt
+FK32W="$(echo "scale=2;$(cat $TARGET/.fiomark.txt | grep -A80 '"name" : "4kQ32T1write"' | grep '"bw"' | sed '2!d' | cut -d: -f2 | sed s:,::g)/1024"|bc | awk '{printf "%.2f", $0}')MB/s IOPS=$(cat $TARGET/.fiomark.txt | grep -A80 '"name" : "4kQ32T1write"' | grep iops | sed '7!d' | cut -d: -f2 | cut -d. -f1 | sed 's: ::g')"
+echo -e "4KB Q32T1 Write: $FK32W"
+# 4kQ8T8read
+fio --loops=$LOOPS --size=$SIZE --filename=$TARGET/.fiomark.tmp --stonewall --ioengine=libaio --direct=1 --zero_buffers=$WRITEZERO --output-format=json \
+  --name=4kQ8T8read --bs=4k --iodepth=8 --numjobs=8 --rw=randread > $TARGET/.fiomark.txt
+FK8R="$(echo "scale=2;$(cat $TARGET/.fiomark.txt | grep -A15 '"name" : "4kQ8T8read"' | grep '"bw"' | sed 's/        "bw" : //g' | sed 's:,::g' | awk '{ SUM += $1} END { print SUM }')/1024"|bc | awk '{printf "%.2f", $0}')MB/s IOPS=$(cat $TARGET/.fiomark.txt | grep -A15 '"name" : "4kQ8T8read"' | grep iops | sed 's/        "iops" : //g' | sed 's:,::g' | awk '{ SUM += $1} END { print SUM }' | cut -d. -f1)"
+echo -e "\033[1;35m
+4KB Q8T8 Read: $FK8R"
+# 4kQ8T8write
+fio --loops=$LOOPS --size=$SIZE --filename=$TARGET/.fiomark.tmp --stonewall --ioengine=libaio --direct=1 --zero_buffers=$WRITEZERO --output-format=json \
+  --name=4kQ8T8write --bs=4k --iodepth=8 --numjobs=8 --rw=randwrite > $TARGET/.fiomark.txt
+FK8W="$(echo "scale=2;$(cat $TARGET/.fiomark.txt | grep -A80 '"name" : "4kQ8T8write"' | grep '"bw"' | sed 's/        "bw" : //g' | sed 's:,::g' | awk '{ SUM += $1} END { print SUM }')/1024"|bc | awk '{printf "%.2f", $0}')MB/s IOPS=$(cat $TARGET/.fiomark.txt | grep -A80 '"name" : "4kQ8T8write"' | grep '"iops" '| sed 's/        "iops" : //g' | sed 's:,::g' | awk '{ SUM += $1} END { print SUM }' | cut -d. -f1)"
+echo -e "4KB Q8T8 Write: $FK8W
+\033[0m
+"
+
+rm $TARGET/.fiomark.txt $TARGET/.fiomark.tmp
