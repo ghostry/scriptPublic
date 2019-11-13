@@ -104,3 +104,5 @@ venv.bak/
 .mypy_cache/
 scriptPublic.sublime-workspace
 gocn/dnsmasq.conf
+
+Pipfile.lock
