@@ -106,3 +106,7 @@ scriptPublic.sublime-workspace
 gocn/dnsmasq.conf
 
 Pipfile.lock
+
+/tim.deb
+
+/wechat.deb
