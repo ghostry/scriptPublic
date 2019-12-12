@@ -1,6 +1,5 @@
 #!/bin/bash
 # sudo apt install fio bc
-# sudo apt install smartmontools
 
 LOOPS=1 #How many times to run each test
 QSIZE=1 #Size of Q32Seq tests
@@ -25,7 +24,6 @@ DRIVESIZE=$(($(cat /sys/block/$DRIVE/size)*512/1024/1024/1024))GB
 echo -e "Configuration: Size:\033[0;32m$SIZE\033[0m Loops:\033[0;32m$LOOPS\033[0m Write Only Zeroes:\033[0;32m$WRITEZERO\033[0m
 Running Benchmark on: \033[0;32m/dev/$DRIVE\033[0m, \033[0;32m$DRIVEMODEL ($DRIVESIZE)\033[0m, please wait...
 "
-sudo smartctl -a /dev/$DRIVE|grep 'Device Model'|awk -F ':' '{print $2}'
 # Bufread
 fio --loops=$LOOPS --size=$SIZE --filename=$TARGET/.fiomark.tmp --stonewall --ioengine=libaio --direct=1 --zero_buffers=$WRITEZERO --output-format=json \
   --name=Bufread --loops=1 --bs=$SIZE --iodepth=1 --numjobs=1 --rw=readwrite > $TARGET/.fiomark.txt
