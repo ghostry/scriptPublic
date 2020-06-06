@@ -26,7 +26,7 @@ class fastMirrors(object):
     dev = False
     """
 
-    def __init__(self, version='disco', threadNum=10, timeout=5, dev=False):
+    def __init__(self, version='focal', threadNum=10, timeout=5, dev=False):
         self.version = version
         self.threadNum = threadNum + 1
         self.timeout = timeout
