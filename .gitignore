@@ -110,3 +110,5 @@ Pipfile.lock
 /tim.deb
 
 /wechat.deb
+/gnome-shell-theme.gresource/gnome-shell-theme.gresource.xml
+/gnome-shell-theme.gresource/gnome-shell-theme/
